@@ -1,0 +1,12 @@
+server:
+  port: 9999
+  servlet:
+    context-path: /websocketserver2
+
+
+spring:
+  application:
+    name: websocketserver2
+  #环境 dev|test|prod
+  profiles:
+    active: dev

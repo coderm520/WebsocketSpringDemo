@@ -1,0 +1,119 @@
+<!DOCTYPE HTML>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org" >
+<head>
+    <title>Getting Started: Serving Web Content</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head>
+<body>
+<p th:text="'Hello, ' + ${title}" /><br/>
+
+<div>
+    <div>
+        <button id="connect" onclick="open1();">连接</button>
+        <button id="disconnect" disabled="disabled" onclick="close1();">断开连接</button>
+    </div>
+    <div id="conversationDiv">
+        <label>名字</label><input type="text" id="name" />
+        <button id="sendName" onclick="send1();">发送</button>
+        <p id="response"></p>
+    </div>
+</div>
+
+
+<script src="https://cdn.bootcss.com/jquery/1.12.3/jquery.min.js"></script>
+<script src="https://cdn.bootcss.com/stomp.js/2.2.0/stomp.min.js"></script>
+<script src="https://cdn.bootcss.com/sockjs-client/1.3.0/sockjs.min.js"></script>
+<script>
+
+    var ws;
+    function open1() {
+        ws = new WebSocket("ws://localhost:9999/websocketserver2/marco");
+        ws.onopen=function(){//建立WebSocket连接时触发这个事件
+            console.log("客户端已经建立连接")
+        }
+        ws.onmessage=function(e){//有数据从客户端传来时触发，e.data数传过来的数据
+            console.log("这是服务端传过来的数据"+e.data)
+        }
+        ws.onclose=function(){//WebSocket连接断开时触发
+            console.log("已经和服务器断开连接")
+        }
+        ws.onerror=function(e){//WebSocket连接出现错误时触发，e.data是错误信息
+            console.log("发生错误，错误信息为"+e.data)
+        }
+    }
+    function send1(){
+        ws.send('aaaaaaaaaa');//客户端向服务器发送数据
+    }
+    function close1(){
+        ws.close()//关闭WebSocket连接
+    }
+
+</script>
+<script>
+    var stompClient = null;
+
+    function setConnected(connected) {
+        document.getElementById('connect').disabled = connected;
+        document.getElementById('disconnect').disabled = !connected;
+        document.getElementById('conversationDiv').style.visibility = connected ? 'visible' : 'hidden';
+        $('#response').html('');
+    }
+
+    function connect() {
+        // websocket的连接地址，此值等于WebSocketMessageBrokerConfigurer中registry.addEndpoint("/websocket-simple").withSockJS()配置的地址
+        var options={
+
+        };
+
+        var socket = new SockJS('http://localhost:8888/websocket-simple',null,options);
+        stompClient = Stomp.over(socket);
+        var headers={
+            //"Access-Control-Allow-Origin":"*"
+        };
+        stompClient.connect(headers, function(frame) {
+            setConnected(true);
+            console.log('Connected: ' + frame);
+            var message=JSON.stringify({ "senderName": $('#name').val(),"messageInfo":"xxxxxxx" });
+
+            // 客户端订阅消息的目的地址：此值BroadcastCtl中被@SendTo("/topic/getResponse")注解的里配置的值
+            stompClient.subscribe('/topic/getResponse', function(respnose){
+                var rp=JSON.parse(respnose.body).messageInfo;
+                console.log(rp);
+                $("#response").html(rp + "\r\n" + $("#response").html());
+            });
+
+            // stompClient.connect('guest','guest',function (feame) {
+            //     stompClient.send('/topic/getResponse',{},message);
+            // })
+        },function (error) {
+            debugger;
+
+        });
+    }
+
+
+    function disconnect() {
+        if (stompClient != null) {
+            stompClient.disconnect();
+        }
+        setConnected(false);
+        console.log("Disconnected");
+    }
+
+    function sendName() {
+        var name = $('#name').val();
+        // 客户端消息发送的目的：服务端使用BroadcastCtl中@MessageMapping("/receive")注解的方法来处理发送过来的消息
+        stompClient.send(
+            "/app/hello",
+            {"content-type": "application/json;charset=UTF-8"},
+            JSON.stringify({ "senderName": name,"messageInfo":"xxxxxxx" })
+        );
+    }
+
+    function showResponse(message) {
+        $("#response").html(message + "\r\n" + $("#response").html());
+    }
+
+</script>
+</body>
+</html>
